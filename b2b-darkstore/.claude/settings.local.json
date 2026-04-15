@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf public app/favicon.ico)",
+      "Bash(mkdir -p app/manager app/picker app/api/agent/reason components/map components/ui lib)"
+    ]
+  }
+}

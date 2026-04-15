@@ -1,0 +1,319 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>CyanTech Ops | B2B Darkstore Manager Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#02cbfc",
+                        "on-tertiary-fixed": "#001249",
+                        "on-error-container": "#570008",
+                        "surface": "#eff8ff",
+                        "tertiary-fixed-dim": "#859eff",
+                        "secondary-fixed": "#9cd9ff",
+                        "secondary-container": "#9cd9ff",
+                        "on-error": "#ffefee",
+                        "on-tertiary-fixed-variant": "#052e94",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#00647d",
+                        "background": "#eff8ff",
+                        "error": "#b31b25",
+                        "surface-container-high": "#c4e7ff",
+                        "surface-container-highest": "#b7e3ff",
+                        "inverse-on-surface": "#78a2bd",
+                        "tertiary": "#3754b7",
+                        "primary-fixed-dim": "#00bdea",
+                        "tertiary-fixed": "#99acff",
+                        "on-secondary-fixed": "#00394f",
+                        "outline-variant": "#88b3cd",
+                        "on-tertiary-container": "#002682",
+                        "error-dim": "#9f0519",
+                        "on-secondary-container": "#004d6a",
+                        "on-secondary-fixed-variant": "#005778",
+                        "on-primary": "#e3f6ff",
+                        "tertiary-dim": "#2947ab",
+                        "primary-dim": "#00576e",
+                        "inverse-primary": "#02cbfc",
+                        "on-primary-container": "#003e4f",
+                        "surface-tint": "#00647d",
+                        "on-background": "#003347",
+                        "error-container": "#fb5151",
+                        "primary-fixed": "#02cbfc",
+                        "secondary": "#006287",
+                        "surface-container-low": "#e3f3ff",
+                        "surface-variant": "#b7e3ff",
+                        "on-primary-fixed-variant": "#00485b",
+                        "secondary-fixed-dim": "#75ceff",
+                        "secondary-dim": "#005676",
+                        "tertiary-container": "#99acff",
+                        "on-secondary": "#e7f4ff",
+                        "outline": "#527c95",
+                        "on-primary-fixed": "#002733",
+                        "on-surface": "#003347",
+                        "on-tertiary": "#f2f1ff",
+                        "surface-bright": "#eff8ff",
+                        "inverse-surface": "#00101a",
+                        "on-surface-variant": "#356078",
+                        "surface-container": "#d1ecff",
+                        "surface-dim": "#a3dcff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.0rem",
+                        "lg": "0.0rem",
+                        "xl": "0.0rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .grid-floor {
+            background-image: radial-gradient(circle, #02cbfc33 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .floor-map-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(12, 1fr);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background overflow-hidden h-screen flex flex-col">
+<!-- TopNavBar (Shared Component) -->
+<header class="fixed top-0 w-full border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 z-50 flex justify-between items-center h-16 px-6 w-full">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold tracking-tighter text-cyan-500 dark:text-cyan-400 font-headline" style="">B2B DARKSTORE<br></span>
+<div class="hidden md:flex gap-6 items-center">
+<span class="text-cyan-600 dark:text-cyan-300 font-bold border-b-2 border-cyan-500 font-headline h-16 flex items-center" style="">Dashboard</span>
+<span class="text-slate-500 dark:text-slate-400 font-medium font-headline hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer px-2 h-16 flex items-center" style="">Inventory</span>
+<span class="text-slate-500 dark:text-slate-400 font-medium font-headline hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer px-2 h-16 flex items-center" style="">Orders</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="px-4 py-1.5 bg-cyan-100 text-cyan-700 font-headline text-xs font-bold uppercase tracking-widest border border-cyan-200" style="">Active Pickers</button>
+<button class="px-4 py-1.5 bg-error-container text-on-error-container font-headline text-xs font-bold uppercase tracking-widest border border-error" style="">Congestion Alerts</button>
+<div class="flex items-center gap-3 ml-4 border-l border-slate-200 pl-4">
+<span class="material-symbols-outlined text-slate-500 cursor-pointer" style="">notifications</span>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer" style="">settings</span>
+</div>
+</div>
+</header>
+<!-- Main Layout Container -->
+<div class="flex flex-1 pt-16 h-full overflow-hidden">
+<!-- SideNavBar (Shared Component) -->
+<nav class="fixed left-0 top-0 h-screen w-64 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col py-8 z-40">
+<div class="px-6 mb-10 mt-12">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-cyan-500 flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="">warehouse</span>
+</div>
+<div>
+<div class="font-headline text-sm font-bold uppercase tracking-wider text-cyan-600" style="">Zone Alpha-7</div>
+<div class="text-[10px] text-slate-500 uppercase tracking-[0.2em]" style="">Operational</div>
+</div>
+</div>
+</div>
+<div class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-6 py-3 text-cyan-600 dark:text-cyan-300 font-black border-l-4 border-cyan-500 bg-cyan-50/50 dark:bg-cyan-900/20 font-headline text-sm uppercase tracking-wider transform active:translate-x-1 transition-transform" href="#" style="">
+<span class="material-symbols-outlined" style="">dashboard</span>
+                    Dashboard
+                </a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 dark:text-slate-400 font-headline text-sm uppercase tracking-wider hover:text-cyan-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#" style="">
+<span class="material-symbols-outlined" style="">inventory_2</span>
+                    Inventory
+                </a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 dark:text-slate-400 font-headline text-sm uppercase tracking-wider hover:text-cyan-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#" style="">
+<span class="material-symbols-outlined" style="">shopping_cart</span>
+                    Orders
+                </a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 dark:text-slate-400 font-headline text-sm uppercase tracking-wider hover:text-cyan-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#" style="">
+<span class="material-symbols-outlined" style="">bar_chart</span>
+                    Analytics
+                </a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 dark:text-slate-400 font-headline text-sm uppercase tracking-wider hover:text-cyan-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#" style="">
+<span class="material-symbols-outlined" style="">local_shipping</span>
+                    Fleet
+                </a>
+</div>
+<div class="px-6 mt-auto">
+<button class="w-full bg-cyan-500 text-white font-headline text-sm font-bold uppercase tracking-widest py-4 hover:bg-cyan-600 transition-colors" style="">
+                    Create Batch
+                </button>
+<div class="mt-8 border-t border-slate-200 pt-6 space-y-4">
+<a class="flex items-center gap-3 text-slate-500 font-headline text-[10px] uppercase tracking-[0.2em] hover:text-cyan-500 transition-colors" href="#" style="">
+<span class="material-symbols-outlined text-sm" style="">help</span>
+                        Support
+                    </a>
+<a class="flex items-center gap-3 text-slate-500 font-headline text-[10px] uppercase tracking-[0.2em] hover:text-error transition-colors" href="#" style="">
+<span class="material-symbols-outlined text-sm" style="">logout</span>
+                        Sign Out
+                    </a>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-64 p-6 overflow-hidden flex flex-col gap-6">
+<div class="flex gap-6 h-full">
+<!-- Center: Live Floor Map -->
+<section class="flex-1 bg-white border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+<div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+<h2 class="font-headline font-bold text-xs uppercase tracking-widest flex items-center gap-2" style="">
+<span class="w-2 h-2 bg-primary-container animate-pulse"></span>
+                            Live Floor Map <span class="text-slate-400 font-normal" style="">| Grid Unit 1.2m</span>
+</h2>
+<div class="flex gap-2">
+<button class="p-1 border border-slate-200 bg-white hover:bg-slate-50" style=""><span class="material-symbols-outlined text-sm" style="">zoom_in</span></button>
+<button class="p-1 border border-slate-200 bg-white hover:bg-slate-50" style=""><span class="material-symbols-outlined text-sm" style="">zoom_out</span></button>
+<button class="p-1 border border-slate-200 bg-white hover:bg-slate-50" style=""><span class="material-symbols-outlined text-sm" style="">layers</span></button>
+</div>
+</div>
+<div class="flex-1 relative grid-floor p-8">
+<div class="w-full h-full floor-map-grid gap-1">
+<!-- Shelving Units (Static Layout) -->
+<div class="col-span-1 row-span-8 bg-slate-200 opacity-50 border-r-4 border-cyan-500/20"></div>
+<div class="col-start-4 col-span-2 row-start-2 row-span-4 bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-headline uppercase rotate-90" style="">Rack A1</div>
+<div class="col-start-4 col-span-2 row-start-7 row-span-4 bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-headline uppercase rotate-90" style="">Rack A2</div>
+<div class="col-start-8 col-span-2 row-start-2 row-span-4 bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-headline uppercase rotate-90" style="">Rack B1</div>
+<div class="col-start-8 col-span-2 row-start-7 row-span-4 bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-headline uppercase rotate-90" style="">Rack B2</div>
+<div class="col-start-12 col-span-2 row-start-2 row-span-4 bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-headline uppercase rotate-90" style="">Rack C1</div>
+<div class="col-start-12 col-span-2 row-start-7 row-span-4 bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-headline uppercase rotate-90" style="">Rack C2</div>
+<!-- Dynamic Entities (Pickers) -->
+<div class="col-start-6 row-start-3 w-6 h-6 bg-cyan-500 shadow-[0_0_15px_rgba(2,203,252,0.5)] flex items-center justify-center text-white text-[10px] z-10 border border-white" style="">P-01</div>
+<div class="col-start-10 row-start-8 w-6 h-6 bg-cyan-500 shadow-[0_0_15px_rgba(2,203,252,0.5)] flex items-center justify-center text-white text-[10px] z-10 border border-white" style="">P-04</div>
+<div class="col-start-15 row-start-5 w-6 h-6 bg-error shadow-[0_0_15px_rgba(179,27,37,0.5)] flex items-center justify-center text-white text-[10px] z-10 border border-white" style="">P-12</div> <!-- Error/Congestion -->
+<!-- Path Indicators -->
+<div class="col-start-3 col-span-1 row-start-1 row-span-12 border-l-2 border-dashed border-cyan-200"></div>
+<div class="col-start-7 col-span-1 row-start-1 row-span-12 border-l-2 border-dashed border-cyan-200"></div>
+<div class="col-start-11 col-span-1 row-start-1 row-span-12 border-l-2 border-dashed border-cyan-200"></div>
+<!-- Legend -->
+<div class="absolute bottom-6 right-6 bg-white p-3 border border-slate-200 text-[10px] uppercase font-headline tracking-tighter space-y-2">
+<div class="flex items-center gap-2" style=""><span class="w-2 h-2 bg-cyan-500"></span> Active Picker</div>
+<div class="flex items-center gap-2" style=""><span class="w-2 h-2 bg-error"></span> Congestion Point</div>
+<div class="flex items-center gap-2" style=""><span class="w-2 h-2 bg-slate-100 border border-slate-200"></span> Storage Rack</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Sidebars Container -->
+<aside class="w-96 flex flex-col gap-6 overflow-hidden">
+<!-- Live Throughput Card -->
+<section class="bg-white border border-slate-200 p-6 flex flex-col gap-4">
+<h3 class="font-headline font-bold text-xs uppercase tracking-widest text-slate-500" style="">Live Throughput</h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-4 bg-slate-50 border-l-4 border-cyan-500">
+<div class="text-2xl font-headline font-bold text-on-background" style="">412</div>
+<div class="text-[10px] uppercase tracking-wider text-slate-400" style="">Units / Hour</div>
+</div>
+<div class="p-4 bg-slate-50 border-l-4 border-tertiary">
+<div class="text-2xl font-headline font-bold text-on-background" style="">98.4%</div>
+<div class="text-[10px] uppercase tracking-wider text-slate-400" style="">Accuracy</div>
+</div>
+</div>
+<div class="space-y-3 mt-2">
+<div class="flex justify-between items-center text-[11px]">
+<span class="font-headline uppercase tracking-tight text-slate-500" style="">Zone Load</span>
+<span class="font-bold" style="">78%</span>
+</div>
+<div class="w-full bg-slate-100 h-1">
+<div class="bg-cyan-500 h-full" style="width: 78%"></div>
+</div>
+<div class="flex justify-between items-center text-[11px] pt-2">
+<span class="font-headline uppercase tracking-tight text-slate-500" style="">Queue Depth</span>
+<span class="font-bold" style="">142 Orders</span>
+</div>
+<div class="w-full bg-slate-100 h-1">
+<div class="bg-tertiary h-full" style="width: 55%"></div>
+</div>
+</div>
+</section>
+<!-- Agent Reasoning Log -->
+<section class="flex-1 bg-white border border-slate-200 flex flex-col overflow-hidden">
+<div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+<h3 class="font-headline font-bold text-xs uppercase tracking-widest text-slate-500" style="">Agent Reasoning Log</h3>
+<span class="text-[10px] bg-slate-200 px-2 py-0.5 font-bold" style="">STREAMING</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-mono">
+<div class="p-3 bg-cyan-50/50 border-l-2 border-cyan-500">
+<div class="text-cyan-700 font-bold mb-1" style="">[14:02:11] ROUTING_OPTIMIZER</div>
+<p class="text-slate-600 leading-relaxed" style="">Recalculating Picker P-04 path due to blockage in Aisle 4. Rerouting via Node C-09 (+12m distance).</p>
+</div>
+<div class="p-3 bg-slate-50 border-l-2 border-slate-300">
+<div class="text-slate-500 font-bold mb-1" style="">[14:01:55] INV_AUDIT_BOT</div>
+<p class="text-slate-600 leading-relaxed" style="">Bin B1-42 discrepancy detected. 12 units expected, 10 units scanned. flagging for manual verify.</p>
+</div>
+<div class="p-3 bg-error-container/10 border-l-2 border-error">
+<div class="text-error font-bold mb-1" style="">[14:01:32] SAFETY_PROTOCOL</div>
+<p class="text-slate-600 leading-relaxed" style="">Congestion alert Zone C. High density of AGV units. Speed limit reduced to 0.5m/s.</p>
+</div>
+<div class="p-3 bg-slate-50 border-l-2 border-slate-300">
+<div class="text-slate-500 font-bold mb-1" style="">[14:00:48] BATCH_GEN</div>
+<p class="text-slate-600 leading-relaxed" style="">Batch #9928 optimized for Cold Storage sequence. Efficiency gain: +4.2%.</p>
+</div>
+<div class="p-3 bg-cyan-50/50 border-l-2 border-cyan-500">
+<div class="text-cyan-700 font-bold mb-1" style="">[13:59:12] ROUTING_OPTIMIZER</div>
+<p class="text-slate-600 leading-relaxed" style="">Predictive replenishment triggered for Rack A2. Demand spike detected in Beverages.</p>
+</div>
+</div>
+<div class="p-4 border-t border-slate-100">
+<div class="flex gap-2">
+<input class="flex-1 text-[10px] bg-slate-50 border-slate-200 focus:ring-cyan-500 focus:border-cyan-500 font-headline uppercase tracking-wider" placeholder="Query agent reasoning..." type="text">
+<button class="bg-slate-900 text-white p-2" style="">
+<span class="material-symbols-outlined text-sm" style="">send</span>
+</button>
+</div>
+</div>
+</section>
+</aside>
+</div>
+<!-- Bottom Metrics Strip -->
+<div class="grid grid-cols-4 gap-6">
+<div class="bg-white border border-slate-200 p-4 flex items-center justify-between">
+<div>
+<div class="text-[10px] uppercase font-headline tracking-widest text-slate-400" style="">Order Cycle Time</div>
+<div class="text-xl font-headline font-bold" style="">14.2 min</div>
+</div>
+<span class="material-symbols-outlined text-cyan-500" style="">timer</span>
+</div>
+<div class="bg-white border border-slate-200 p-4 flex items-center justify-between">
+<div>
+<div class="text-[10px] uppercase font-headline tracking-widest text-slate-400" style="">Picker Utilization</div>
+<div class="text-xl font-headline font-bold" style="">92.1%</div>
+</div>
+<span class="material-symbols-outlined text-cyan-500" style="">groups</span>
+</div>
+<div class="bg-white border border-slate-200 p-4 flex items-center justify-between">
+<div>
+<div class="text-[10px] uppercase font-headline tracking-widest text-slate-400" style="">System Uptime</div>
+<div class="text-xl font-headline font-bold" style="">100.0%</div>
+</div>
+<span class="material-symbols-outlined text-cyan-500" style="">check_circle</span>
+</div>
+<div class="bg-white border border-slate-200 p-4 flex items-center justify-between">
+<div>
+<div class="text-[10px] uppercase font-headline tracking-widest text-slate-400" style="">Energy Efficiency</div>
+<div class="text-xl font-headline font-bold" style="">A+ Rating</div>
+</div>
+<span class="material-symbols-outlined text-cyan-500" style="">bolt</span>
+</div>
+</div>
+</main>
+</div>
+</body></html>
