@@ -1,7 +1,11 @@
 export default function ManagerLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  return <>{children}</>;
+  return (
+    <div className="h-screen overflow-hidden">
+      {children}
+    </div>
+  )
 }

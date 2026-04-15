@@ -1,7 +1,11 @@
 export default function PickerLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen bg-background">
+      {children}
+    </div>
+  )
 }
