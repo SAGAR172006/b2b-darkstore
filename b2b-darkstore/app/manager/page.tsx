@@ -10,12 +10,12 @@ import {
 } from 'lucide-react'
 
 // ── BinCell ───────────────────────────────────────────────────────
-function BinCell({ bin, picker }: { bin: Bin | undefined; picker: Picker | undefined }) {
+function BinCell({ bin, picker, pickerIndex }: { bin: Bin | undefined; picker: Picker | undefined; pickerIndex?: number }) {
   const isGhost = bin?.status === 'ghosting_suspected'
   const hasPicker = !!picker
 
   if (!bin) {
-    return <div className="aspect-square bg-surface-container-high/30 border border-outline-variant/20" />
+    return <div className="aspect-square bg-slate-200/40 border border-slate-300/30" />
   }
 
   return (
@@ -24,7 +24,7 @@ function BinCell({ bin, picker }: { bin: Bin | undefined; picker: Picker | undef
         'relative aspect-square border flex flex-col items-center justify-center overflow-hidden cursor-default select-none transition-all duration-300',
         isGhost
           ? 'border-2 border-error bg-red-50'
-          : 'border border-primary-fixed/40 bg-surface-container',
+          : 'border border-slate-300 bg-white',
       ].join(' ')}
       style={isGhost ? {
         animation: 'pulse-red 1.4s ease-in-out infinite',
@@ -33,18 +33,18 @@ function BinCell({ bin, picker }: { bin: Bin | undefined; picker: Picker | undef
       title={`${bin.label} — Aisle ${bin.aisle_id} — ${bin.status}`}
     >
       {isGhost && (
-        <div className="absolute top-0.5 right-0.5">
-          <AlertTriangle size={8} className="text-error" />
+        <div className="absolute top-1 right-1">
+          <AlertTriangle size={10} className="text-error" />
         </div>
       )}
       {hasPicker && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full bg-primary-fixed/30 border border-primary-fixed flex items-center justify-center animate-pulse">
-            <User size={8} className="text-primary" />
+          <div className="w-6 h-6 bg-primary-fixed border border-primary flex items-center justify-center">
+            <span className="text-[8px] font-bold text-white font-mono">P-{String(pickerIndex).padStart(2, '0')}</span>
           </div>
         </div>
       )}
-      <span className="text-[7px] font-mono text-on-surface-variant/60 leading-none">{bin.label}</span>
+      <span className="text-[8px] font-mono text-slate-500 leading-none">{bin.label}</span>
     </div>
   )
 }
@@ -52,17 +52,19 @@ function BinCell({ bin, picker }: { bin: Bin | undefined; picker: Picker | undef
 // ── LogRow ────────────────────────────────────────────────────────
 function LogRow({ entry }: { entry: LogEntry }) {
   const styles = {
-    info:  { icon: <Activity size={10} className="text-primary-fixed shrink-0 mt-0.5" />, text: 'text-on-surface-variant' },
-    warn:  { icon: <Zap size={10} className="text-amber-500 shrink-0 mt-0.5" />, text: 'text-amber-600' },
-    alert: { icon: <AlertTriangle size={10} className="text-error shrink-0 mt-0.5" />, text: 'text-error font-semibold' },
+    info:  { border: 'border-l-4 border-primary-fixed', bg: 'bg-white', icon: <Activity size={12} className="text-primary-fixed shrink-0" />, text: 'text-slate-700' },
+    warn:  { border: 'border-l-4 border-amber-400', bg: 'bg-amber-50/50', icon: <Zap size={12} className="text-amber-500 shrink-0" />, text: 'text-amber-700' },
+    alert: { border: 'border-l-4 border-error', bg: 'bg-red-50/50', icon: <AlertTriangle size={12} className="text-error shrink-0" />, text: 'text-error font-semibold' },
   }
   const s = styles[entry.level]
 
   return (
-    <div className={`flex gap-2 py-1.5 border-b border-outline-variant/20 last:border-0 ${entry.level === 'alert' ? 'border-l-2 border-l-error pl-2' : ''}`}>
+    <div className={`${s.border} ${s.bg} p-3 mb-2 flex gap-3 items-start`}>
       {s.icon}
-      <span className="text-[10px] font-mono text-outline shrink-0">{entry.timestamp}</span>
-      <span className={`text-[11px] leading-tight ${s.text}`}>{entry.message}</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-[10px] font-mono text-primary-fixed font-bold block mb-1">{entry.timestamp}</span>
+        <span className={`text-xs leading-tight ${s.text} block`}>{entry.message}</span>
+      </div>
     </div>
   )
 }
@@ -72,10 +74,10 @@ function StatBar({ label, value, pct, suffix }: { label: string; value: string; 
   return (
     <div className="mb-3">
       <div className="flex justify-between items-center mb-1">
-        <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-outline">{label}</span>
-        <span className="text-[11px] font-bold text-on-surface">{value}{suffix}</span>
+        <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-slate-500">{label}</span>
+        <span className="text-xs font-bold text-slate-900">{value}{suffix}</span>
       </div>
-      <div className="h-1 bg-surface-container-highest">
+      <div className="h-1.5 bg-slate-200">
         <div className="h-full bg-primary-fixed transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -106,7 +108,13 @@ export default function ManagerDashboard() {
   bins.forEach(b => binsByCell.set(`${b.x}-${b.y}`, b))
 
   const pickerByAisle = new Map<string, Picker>()
-  pickers.forEach(p => { if (p.current_aisle) pickerByAisle.set(p.current_aisle, p) })
+  const pickerIndexByAisle = new Map<string, number>()
+  pickers.forEach((p, idx) => { 
+    if (p.current_aisle) {
+      pickerByAisle.set(p.current_aisle, p)
+      pickerIndexByAisle.set(p.current_aisle, idx + 1)
+    }
+  })
 
   useEffect(() => {
     async function load() {
@@ -167,132 +175,143 @@ export default function ManagerDashboard() {
   }, [log])
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden font-body">
+    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden font-body">
       {/* ── Top Bar ── */}
-      <header className="h-12 bg-surface-container-lowest border-b-2 border-outline-variant flex items-center px-4 gap-6 shrink-0">
+      <header className="h-14 bg-white border-b border-slate-200 flex items-center px-6 gap-6 shrink-0">
         <div className="flex items-center gap-2">
-          <LayoutGrid size={16} className="text-primary-fixed" />
-          <span className="font-headline font-black italic uppercase text-primary-fixed tracking-tight text-sm">CyanTech Ops</span>
+          <LayoutGrid size={18} className="text-primary-fixed" />
+          <span className="font-headline font-black italic uppercase text-primary-fixed tracking-tight text-base">CyanTech Ops</span>
         </div>
-        <nav className="flex items-center gap-5 ml-4">
+        <nav className="flex items-center gap-6 ml-6">
           {['Dashboard', 'Inventory', 'Orders'].map((item, i) => (
-            <button key={item} className={`text-xs font-headline font-bold uppercase tracking-widest pb-0.5 ${i === 0 ? 'text-primary-fixed border-b-2 border-primary-fixed' : 'text-outline hover:text-on-surface'}`}>
+            <button key={item} className={`text-xs font-headline font-bold uppercase tracking-widest pb-0.5 ${i === 0 ? 'text-primary-fixed border-b-2 border-primary-fixed' : 'text-slate-500 hover:text-slate-900'}`}>
               {item}
             </button>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-3">
-          <button className="text-xs font-headline font-bold uppercase tracking-widest px-3 py-1 border border-primary-fixed text-primary-fixed hover:bg-primary-fixed/10">Active Pickers</button>
-          <button className="text-xs font-headline font-bold uppercase tracking-widest px-3 py-1 bg-error text-on-error hover:bg-error/90">Congestion Alerts</button>
-          <div className={`flex items-center gap-1.5 text-xs font-mono ${connected ? 'text-emerald-600' : 'text-error'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-error'}`} />
+        <div className="ml-auto flex items-center gap-4">
+          <button className="text-xs font-headline font-bold uppercase tracking-widest px-4 py-1.5 border border-primary-fixed text-primary-fixed hover:bg-primary-fixed/10">Active Pickers</button>
+          <button className="text-xs font-headline font-bold uppercase tracking-widest px-4 py-1.5 bg-error text-white hover:bg-error/90">Congestion Alerts</button>
+          <div className={`flex items-center gap-2 text-xs font-mono ${connected ? 'text-emerald-600' : 'text-error'}`}>
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-error'}`} />
             {connected ? 'LIVE' : 'OFFLINE'}
           </div>
-          {connected ? <Wifi size={14} className="text-emerald-500" /> : <WifiOff size={14} className="text-error" />}
+          {connected ? <Wifi size={16} className="text-emerald-500" /> : <WifiOff size={16} className="text-error" />}
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* ── Left Sidebar ── */}
-        <aside className="w-52 bg-surface-container-lowest border-r border-outline-variant flex flex-col shrink-0">
-          <div className="p-4 border-b border-outline-variant">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 bg-primary-fixed/20 border border-primary-fixed flex items-center justify-center">
-                <LayoutGrid size={14} className="text-primary-fixed" />
+        <aside className="w-60 bg-white border-r border-slate-200 flex flex-col shrink-0">
+          <div className="p-5 border-b border-slate-200 bg-white">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary-fixed/20 border border-primary-fixed flex items-center justify-center shrink-0">
+                <LayoutGrid size={16} className="text-primary-fixed" />
               </div>
               <div>
-                <p className="text-[10px] font-headline font-black uppercase text-primary-fixed">Zone Alpha-7</p>
-                <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest">Operational</p>
+                <p className="text-xs font-headline font-black uppercase text-primary-fixed tracking-wide">Zone Alpha-7</p>
+                <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Operational</p>
               </div>
             </div>
           </div>
 
-          <nav className="flex-1 p-2">
+          <nav className="flex-1 p-3">
             {[
-              { label: 'Dashboard', icon: <LayoutGrid size={14} />, active: true },
-              { label: 'Inventory', icon: <Package size={14} />, active: false },
-              { label: 'Orders', icon: <ShoppingCart size={14} />, active: false },
-              { label: 'Analytics', icon: <BarChart3 size={14} />, active: false },
-              { label: 'Fleet', icon: <Truck size={14} />, active: false },
+              { label: 'Dashboard', icon: <LayoutGrid size={16} />, active: true },
+              { label: 'Inventory', icon: <Package size={16} />, active: false },
+              { label: 'Orders', icon: <ShoppingCart size={16} />, active: false },
+              { label: 'Analytics', icon: <BarChart3 size={16} />, active: false },
+              { label: 'Fleet', icon: <Truck size={16} />, active: false },
             ].map(item => (
-              <button key={item.label} className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-headline font-bold uppercase tracking-widest mb-0.5 transition-colors ${item.active ? 'text-primary-fixed bg-primary-fixed/10 border-l-2 border-primary-fixed' : 'text-outline hover:text-on-surface hover:bg-surface-container'}`}>
+              <button key={item.label} className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-headline uppercase tracking-widest mb-1 transition-colors ${item.active ? 'text-primary-fixed font-bold border-l-2 border-primary-fixed bg-primary-fixed/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
                 {item.icon}
                 {item.label}
               </button>
             ))}
           </nav>
 
-          <div className="p-3 border-t border-outline-variant space-y-2">
-            <div className="p-2 bg-surface-container border border-outline-variant/50">
-              <p className="text-[9px] font-headline uppercase tracking-widest text-outline mb-1">Active Pickers</p>
-              <p className={`text-lg font-black font-headline ${activePickers > 0 ? 'text-primary-fixed' : 'text-outline'}`}>
+          <div className="p-4 border-t border-slate-200 space-y-3">
+            <div className="p-3 bg-slate-50 border border-slate-200">
+              <p className="text-[10px] font-headline uppercase tracking-widest text-slate-500 mb-1">Active Pickers</p>
+              <p className={`text-xl font-black font-headline ${activePickers > 0 ? 'text-primary-fixed' : 'text-slate-400'}`}>
                 {activePickers}
-                <span className="text-[10px] text-outline font-normal"> / {pickers.length}</span>
+                <span className="text-xs text-slate-500 font-normal"> / {pickers.length}</span>
               </p>
             </div>
-            <div className="p-2 bg-surface-container border border-outline-variant/50">
-              <p className="text-[9px] font-headline uppercase tracking-widest text-outline mb-1">Ghost Alerts</p>
-              <p className={`text-lg font-black font-headline ${ghostCount > 0 ? 'text-error animate-pulse' : 'text-outline'}`}>
+            <div className="p-3 bg-slate-50 border border-slate-200">
+              <p className="text-[10px] font-headline uppercase tracking-widest text-slate-500 mb-1">Ghost Alerts</p>
+              <p className={`text-xl font-black font-headline ${ghostCount > 0 ? 'text-error animate-pulse' : 'text-slate-400'}`}>
                 {ghostCount}
               </p>
             </div>
-            <div className="p-2 bg-surface-container border border-outline-variant/50">
-              <p className="text-[9px] font-headline uppercase tracking-widest text-outline mb-1">Bin Health</p>
-              <p className={`text-lg font-black font-headline ${healthPct > 80 ? 'text-emerald-600' : 'text-amber-500'}`}>
+            <div className="p-3 bg-slate-50 border border-slate-200">
+              <p className="text-[10px] font-headline uppercase tracking-widest text-slate-500 mb-1">Bin Health</p>
+              <p className={`text-xl font-black font-headline ${healthPct > 80 ? 'text-emerald-600' : 'text-amber-500'}`}>
                 {healthPct}%
               </p>
             </div>
-            <button className="w-full py-2 bg-primary-fixed text-on-primary-container font-headline font-black uppercase tracking-widest text-xs hover:bg-primary/90 transition-colors">
+            <button className="w-full py-3 bg-primary-fixed text-on-primary-container font-headline font-black uppercase tracking-widest text-xs hover:bg-primary/90 transition-colors">
               Create Batch
             </button>
           </div>
 
-          <div className="p-3 border-t border-outline-variant">
-            <button className="w-full flex items-center gap-2 text-[10px] text-outline hover:text-on-surface py-1">
-              <Settings size={11} /> Support
+          <div className="p-4 border-t border-slate-200">
+            <button className="w-full flex items-center gap-2 text-xs text-slate-500 hover:text-slate-900 py-2">
+              <Settings size={13} /> Support
             </button>
-            <button className="w-full flex items-center gap-2 text-[10px] text-outline hover:text-on-surface py-1">
-              <TrendingUp size={11} /> Sign Out
+            <button className="w-full flex items-center gap-2 text-xs text-slate-500 hover:text-slate-900 py-2">
+              <TrendingUp size={13} /> Sign Out
             </button>
           </div>
         </aside>
 
         {/* ── Center: Grid ── */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="h-9 bg-surface-container-lowest border-b border-outline-variant flex items-center px-4 gap-3 shrink-0">
-            <span className="w-2 h-2 bg-primary-fixed shrink-0" />
-            <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-on-surface">Live Floor Map</span>
-            <span className="text-[10px] text-outline">| Grid Unit 1.2M</span>
+          <div className="h-11 bg-white border-b border-slate-200 flex items-center px-5 gap-3 shrink-0">
+            <span className="w-2.5 h-2.5 bg-primary-fixed shrink-0" />
+            <span className="text-xs font-headline font-bold uppercase tracking-widest text-slate-900">Live Floor Map</span>
+            <span className="text-xs text-slate-500">| Grid Unit 1.2M</span>
             <div className="ml-auto flex items-center gap-1">
               {[ZoomIn, ZoomOut, Layers].map((Icon, i) => (
-                <button key={i} className="p-1 border border-outline-variant hover:bg-surface-container text-outline hover:text-on-surface">
-                  <Icon size={12} />
+                <button key={i} className="p-1.5 border border-slate-300 hover:bg-slate-50 text-slate-600 hover:text-slate-900">
+                  <Icon size={14} />
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center bg-surface-container-low p-4">
-            <div
-              className="grid gap-0.5"
-              style={{ gridTemplateColumns: 'repeat(10, minmax(0, 1fr))', width: 'min(55vw, 480px)' }}
-            >
-              {Array.from({ length: 10 }, (_, row) =>
-                Array.from({ length: 10 }, (_, col) => {
-                  const bin = binsByCell.get(`${col + 1}-${row + 1}`)
-                  const picker = bin ? pickerByAisle.get(bin.aisle_id) : undefined
-                  return <BinCell key={`${row}-${col}`} bin={bin} picker={picker} />
-                })
-              )}
+          <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 p-6">
+            <div className="relative">
+              <div
+                className="grid gap-0.5"
+                style={{ gridTemplateColumns: 'repeat(10, minmax(0, 1fr))', width: 'min(58vw, 520px)' }}
+              >
+                {Array.from({ length: 10 }, (_, row) =>
+                  Array.from({ length: 10 }, (_, col) => {
+                    const bin = binsByCell.get(`${col + 1}-${row + 1}`)
+                    const picker = bin ? pickerByAisle.get(bin.aisle_id) : undefined
+                    const pickerIdx = bin && picker ? pickerIndexByAisle.get(bin.aisle_id) : undefined
+                    return <BinCell key={`${row}-${col}`} bin={bin} picker={picker} pickerIndex={pickerIdx} />
+                  })
+                )}
+              </div>
+              {/* Rack Labels */}
+              <div className="absolute -right-16 top-0 h-full flex flex-col justify-around text-slate-500">
+                {[1, 2, 3, 4, 5].map(rack => (
+                  <div key={rack} className="text-xs font-headline font-bold uppercase tracking-widest" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                    Rack {String(rack).padStart(2, '0')}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-6 mt-3">
+            <div className="flex gap-8 mt-5">
               {[
                 { color: 'bg-primary-fixed', label: 'Active Picker' },
-                { color: 'bg-error', label: 'Congestion Point' },
-                { color: 'bg-outline-variant', label: 'Storage Rack' },
+                { color: 'bg-error', label: 'Ghost Bin' },
+                { color: 'bg-slate-300', label: 'Storage Rack' },
               ].map(item => (
-                <div key={item.label} className="flex items-center gap-1.5 text-[10px] text-outline">
-                  <span className={`w-2 h-2 ${item.color}`} />
+                <div key={item.label} className="flex items-center gap-2 text-xs text-slate-600">
+                  <span className={`w-3 h-3 ${item.color}`} />
                   {item.label}
                 </div>
               ))}
@@ -301,17 +320,17 @@ export default function ManagerDashboard() {
         </main>
 
         {/* ── Right Sidebar ── */}
-        <aside className="w-80 bg-surface-container-lowest border-l border-outline-variant flex flex-col shrink-0">
-          <div className="p-4 border-b border-outline-variant">
-            <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-outline mb-3">Live Throughput</p>
-            <div className="flex gap-0 mb-4">
-              <div className="flex-1 pr-4">
-                <p className="text-2xl font-black font-headline text-on-surface leading-none">412</p>
-                <p className="text-[9px] font-headline uppercase tracking-widest text-outline mt-0.5">Units / Hour</p>
+        <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shrink-0">
+          <div className="p-5 border-b border-slate-200">
+            <p className="text-xs font-headline font-bold uppercase tracking-widest text-slate-500 mb-4">Live Throughput</p>
+            <div className="flex gap-0 mb-5">
+              <div className="flex-1 pr-5">
+                <p className="text-3xl font-black font-headline text-slate-900 leading-none">412</p>
+                <p className="text-[10px] font-headline uppercase tracking-widest text-slate-500 mt-1">Units / Hour</p>
               </div>
-              <div className="flex-1 pl-4 border-l border-outline-variant">
-                <p className="text-2xl font-black font-headline text-on-surface leading-none">98.4%</p>
-                <p className="text-[9px] font-headline uppercase tracking-widest text-outline mt-0.5">Accuracy</p>
+              <div className="flex-1 pl-5 border-l border-slate-200">
+                <p className="text-3xl font-black font-headline text-slate-900 leading-none">98.4%</p>
+                <p className="text-[10px] font-headline uppercase tracking-widest text-slate-500 mt-1">Accuracy</p>
               </div>
             </div>
             <StatBar label="Zone Load" value="78" pct={78} suffix="%" />
@@ -319,22 +338,22 @@ export default function ManagerDashboard() {
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-outline-variant shrink-0">
-              <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-on-surface">Agent Reasoning Log</span>
-              <span className={`text-[9px] font-headline font-bold uppercase px-2 py-0.5 ${connected ? 'bg-primary-fixed text-on-primary-container' : 'bg-surface-container text-outline'}`}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 shrink-0">
+              <span className="text-xs font-headline font-bold uppercase tracking-widest text-slate-900">Agent Reasoning Log</span>
+              <span className={`text-[10px] font-headline font-bold uppercase px-2.5 py-1 ${connected ? 'bg-primary-fixed text-on-primary-container animate-pulse' : 'bg-slate-200 text-slate-600'}`}>
                 {connected ? 'Streaming' : 'Offline'}
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-2">
+            <div className="flex-1 overflow-y-auto px-4 py-3">
               {log.length === 0 && (
-                <p className="text-[11px] text-outline text-center py-8">Awaiting events…</p>
+                <p className="text-xs text-slate-500 text-center py-10">Awaiting events…</p>
               )}
               {log.map(entry => <LogRow key={entry.id} entry={entry} />)}
               <div ref={logEndRef} />
             </div>
 
-            <div className="border-t border-outline-variant p-2 flex gap-2 shrink-0">
+            <div className="border-t border-slate-200 p-3 flex gap-2 shrink-0">
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -345,13 +364,13 @@ export default function ManagerDashboard() {
                   }
                 }}
                 placeholder="Query agent reasoning..."
-                className="flex-1 text-xs px-2 py-1.5 bg-surface-container border border-outline-variant text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-fixed"
+                className="flex-1 text-xs px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-fixed"
               />
               <button
                 onClick={() => { if (query.trim()) { pushLog(`QUERY: ${query.trim()}`, 'info'); setQuery('') } }}
-                className="px-2 py-1.5 bg-primary-fixed text-on-primary-container hover:bg-primary/90"
+                className="px-3 py-2 bg-primary-fixed text-on-primary-container hover:bg-primary/90"
               >
-                <Send size={12} />
+                <Send size={14} />
               </button>
             </div>
           </div>

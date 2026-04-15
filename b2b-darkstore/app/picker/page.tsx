@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 import type { Picker, Task, AgentResponse } from '@/lib/types'
 import {
   LayoutGrid, User, Package, CheckCircle2,
@@ -9,20 +9,7 @@ import {
   ShoppingCart, Truck, Settings,
 } from 'lucide-react'
 
-// Use untyped client to avoid Supabase generic type conflicts
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-type UIState =
-  | 'selecting_picker'
-  | 'idle'
-  | 'task_active'
-  | 'submitting'
-  | 'success'
-  | 'rerouted'
-  | 'error'
+type UIState = 'selecting_picker' | 'idle' | 'task_active' | 'submitting' | 'success' | 'rerouted' | 'error'
 
 export default function PickerApp() {
   const [pickers, setPickers] = useState<Picker[]>([])
@@ -34,18 +21,14 @@ export default function PickerApp() {
   const [feedback, setFeedback] = useState('')
   const [connected, setConnected] = useState(false)
 
-  // Load pickers on mount
   useEffect(() => {
-    sb.from('pickers')
-      .select('*')
-      .then(({ data }) => {
-        if (data) setPickers(data as Picker[])
-      })
+    supabase.from('pickers').select('*').then(({ data }) => {
+      if (data) setPickers(data as Picker[])
+    })
   }, [])
 
-  // Fetch the picker's current open task
   const fetchTask = useCallback(async (picker: Picker) => {
-    const { data } = await sb
+    const { data } = await supabase
       .from('tasks')
       .select('*')
       .eq('picker_id', picker.id)
@@ -56,14 +39,14 @@ export default function PickerApp() {
 
     if (data) {
       setActiveTask(data as Task)
-      const { data: bin } = await sb
+      const { data: bin } = await supabase
         .from('bins')
         .select('label, aisle_id')
         .eq('id', (data as Task).bin_id)
         .single()
       if (bin) {
-        setBinLabel((bin as any).label)
-        setAisleId((bin as any).aisle_id)
+        setBinLabel(bin.label)
+        setAisleId(bin.aisle_id)
       }
       setUiState('task_active')
     } else {
@@ -71,59 +54,49 @@ export default function PickerApp() {
     }
   }, [])
 
-  // Realtime: listen for new tasks assigned to this picker
   useEffect(() => {
     if (!activePicker) return
 
-    const channel = sb
+    const channel = supabase
       .channel(`picker-${activePicker.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'tasks',
-          filter: `picker_id=eq.${activePicker.id}`,
-        },
-        async (payload: any) => {
+        { event: 'INSERT', schema: 'public', table: 'tasks', filter: `picker_id=eq.${activePicker.id}` },
+        async (payload) => {
           const task = payload.new as Task
           setActiveTask(task)
-          const { data: bin } = await sb
+          const { data: bin } = await supabase
             .from('bins')
             .select('label, aisle_id')
             .eq('id', task.bin_id)
             .single()
           if (bin) {
-            setBinLabel((bin as any).label)
-            setAisleId((bin as any).aisle_id)
+            setBinLabel(bin.label)
+            setAisleId(bin.aisle_id)
           }
           setUiState('task_active')
         }
       )
-      .subscribe((status: string) => {
-        setConnected(status === 'SUBSCRIBED')
-      })
+      .subscribe(status => setConnected(status === 'SUBSCRIBED'))
 
-    return () => { sb.removeChannel(channel) }
+    return () => { supabase.removeChannel(channel) }
   }, [activePicker])
 
-  // Select a picker and fetch their task
   async function handlePickerSelect(picker: Picker) {
     setActivePicker(picker)
     await fetchTask(picker)
   }
 
-  // Item Found — complete the task
   async function handleScanned() {
     if (!activeTask || !activePicker) return
     setUiState('submitting')
 
-    await sb
+    await supabase
       .from('tasks')
       .update({ completed_at: new Date().toISOString() })
       .eq('id', activeTask.id)
 
-    await sb
+    await supabase
       .from('pickers')
       .update({ status: 'idle', current_aisle: null })
       .eq('id', activePicker.id)
@@ -136,7 +109,6 @@ export default function PickerApp() {
     setTimeout(() => setUiState('idle'), 2500)
   }
 
-  // Item Missing — trigger ghost agent
   async function handleMissing() {
     if (!activeTask || !activePicker) return
     setUiState('submitting')
@@ -151,6 +123,7 @@ export default function PickerApp() {
           bin_id: activeTask.bin_id,
         }),
       })
+
       const data: AgentResponse = await res.json()
 
       if (data.status === 'GHOSTING_FLAGGED') {
@@ -160,9 +133,7 @@ export default function PickerApp() {
         setAisleId('')
         setUiState('idle')
       } else if (data.status === 'RE_ROUTE') {
-        setFeedback(
-          `Re-routed → Bin ${data.alternative_bin?.label} (Aisle ${data.alternative_bin?.aisle_id})`
-        )
+        setFeedback(`Re-routed → Bin ${data.alternative_bin?.label} (Aisle ${data.alternative_bin?.aisle_id})`)
         setUiState('rerouted')
         setTimeout(() => fetchTask(activePicker), 1500)
       } else {
@@ -176,67 +147,56 @@ export default function PickerApp() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-[480px] mx-auto relative">
-
+    <div className="min-h-screen bg-slate-50 flex flex-col max-w-[480px] mx-auto relative">
       {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-surface-container-lowest border-b-2 border-outline-variant flex items-center justify-between px-4 py-2">
+      <header className="sticky top-0 z-50 bg-white border-b-2 border-slate-200 flex items-center justify-between px-5 py-3">
         <div className="flex items-center gap-2">
-          <LayoutGrid size={16} className="text-primary-fixed" />
-          <span className="font-headline font-black italic uppercase text-primary-fixed tracking-tight text-sm">
-            B2B Darkstore
-          </span>
+          <LayoutGrid size={18} className="text-primary-fixed" />
+          <span className="font-headline font-black italic uppercase text-primary-fixed tracking-tight text-lg">B2B Darkstore</span>
         </div>
         <div className="flex items-center gap-3">
           {activePicker && (
             <div className="flex flex-col items-end">
-              <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-outline">
-                Operator
-              </span>
-              <span className="text-xs font-bold text-on-surface">
-                {activePicker.name.split(' ')[0].toUpperCase()}
-              </span>
+              <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-slate-500">Operator</span>
+              <span className="text-sm font-bold text-slate-900">{activePicker.name.split(' ')[0].toUpperCase()}</span>
             </div>
           )}
-          <div className="w-9 h-9 border-2 border-primary-fixed bg-surface-container flex items-center justify-center">
-            <User size={16} className="text-primary" />
+          <div className="w-10 h-10 border-2 border-primary-fixed bg-slate-50 flex items-center justify-center">
+            <User size={18} className="text-primary" />
           </div>
           {connected
-            ? <Wifi size={13} className="text-emerald-500" />
-            : <WifiOff size={13} className="text-outline/50" />
+            ? <Wifi size={15} className="text-emerald-500" />
+            : <WifiOff size={15} className="text-slate-400" />
           }
         </div>
       </header>
 
       {/* ── Body ── */}
-      <div className="flex-1 px-4 py-4 pb-24 flex flex-col gap-4">
-
+      <div className="flex-1 px-5 py-5 pb-24 flex flex-col gap-5">
         {/* SCREEN: picker selection */}
         {uiState === 'selecting_picker' && (
-          <div className="flex flex-col gap-3">
-            <div className="text-center py-4">
-              <p className="font-headline font-bold uppercase tracking-widest text-xs text-outline mb-1">
-                Select Profile
-              </p>
-              <p className="text-on-surface font-headline font-black text-lg">
-                Who is picking today?
-              </p>
+          <div className="flex flex-col gap-4">
+            <div className="text-center py-5">
+              <p className="font-headline font-bold uppercase tracking-widest text-xs text-slate-500 mb-2">Select Profile</p>
+              <p className="text-slate-900 font-headline font-black text-xl">Who is picking today?</p>
             </div>
             {pickers.map(p => (
               <button
                 key={p.id}
                 onClick={() => handlePickerSelect(p)}
-                className="w-full flex items-center gap-4 p-4 bg-surface-container-lowest border-2 border-outline-variant hover:border-primary-fixed hover:bg-surface-container-low transition-all text-left active:scale-[0.98]"
+                className="w-full flex items-center gap-4 p-5 bg-white border-2 border-slate-200 hover:border-primary-fixed hover:bg-slate-50 transition-all text-left active:scale-[0.98] relative overflow-hidden group"
               >
-                <div className="w-10 h-10 bg-primary-fixed/20 border border-primary-fixed flex items-center justify-center shrink-0">
-                  <User size={18} className="text-primary" />
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-fixed opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-12 h-12 bg-primary-fixed/20 border border-primary-fixed flex items-center justify-center shrink-0">
+                  <User size={20} className="text-primary" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-headline font-bold text-on-surface">{p.name}</p>
+                  <p className="font-headline font-bold text-slate-900 text-base">{p.name}</p>
                   <p className={`text-xs font-headline font-bold uppercase tracking-widest ${p.status === 'picking' ? 'text-amber-500' : 'text-emerald-600'}`}>
                     {p.status === 'picking' ? 'Currently Picking' : 'Ready'}
                   </p>
                 </div>
-                <ArrowRight size={16} className="text-outline" />
+                <ArrowRight size={18} className="text-slate-400" />
               </button>
             ))}
           </div>
@@ -244,15 +204,15 @@ export default function PickerApp() {
 
         {/* SCREEN: idle */}
         {uiState === 'idle' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-20 text-center">
-            <div className="w-16 h-16 border-2 border-outline-variant bg-surface-container flex items-center justify-center">
-              <Package size={28} className="text-outline" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 py-24 text-center">
+            <div className="w-20 h-20 border-2 border-slate-300 bg-white flex items-center justify-center">
+              <Package size={32} className="text-slate-400" />
             </div>
-            <p className="font-headline font-bold text-on-surface">No active task.</p>
-            <p className="text-sm text-outline">Waiting for assignment…</p>
+            <p className="font-headline font-bold text-slate-900 text-lg">No active task.</p>
+            <p className="text-sm text-slate-600">Waiting for assignment…</p>
             <button
               onClick={() => { setActivePicker(null); setUiState('selecting_picker') }}
-              className="text-xs text-outline border border-outline-variant px-3 py-1.5 hover:bg-surface-container mt-2"
+              className="text-sm text-slate-600 border border-slate-300 px-4 py-2 hover:bg-slate-50 mt-3"
             >
               Switch Picker
             </button>
@@ -263,109 +223,85 @@ export default function PickerApp() {
         {uiState === 'task_active' && activeTask && (
           <>
             {/* Task Card */}
-            <div className="bg-surface-container-lowest border-2 border-primary-fixed relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-primary-fixed text-on-primary-container font-headline font-black text-[10px] uppercase tracking-widest px-2 py-1">
+            <div className="bg-white border-2 border-primary-fixed relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-primary-fixed text-on-primary-container font-headline font-black text-xs uppercase tracking-widest px-3 py-1.5">
                 Active Task
               </div>
-              <div className="p-5">
-                <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-outline mb-1">
-                  Location Bin
-                </p>
-                <h2 className="text-6xl font-black font-headline text-primary-container leading-none tracking-tighter mb-2">
+              <div className="p-6">
+                <p className="text-xs font-headline font-bold uppercase tracking-widest text-slate-500 mb-2">Location Bin</p>
+                <h2 className="text-7xl md:text-8xl font-black font-headline text-primary-container leading-none tracking-tighter mb-3">
                   {binLabel}
                 </h2>
-                <div className="flex items-center gap-2 text-on-surface-variant mb-4">
-                  <Package size={15} className="text-primary shrink-0" />
+                <div className="flex items-center gap-2 text-slate-700 mb-5">
+                  <Package size={16} className="text-primary shrink-0" />
                   <span className="text-base font-medium">{activeTask.sku_name}</span>
                 </div>
-                <div className="w-full aspect-square max-h-48 bg-surface-container border-4 border-surface-container-highest flex items-center justify-center mx-auto">
-                  <Package size={48} className="text-outline/30" />
+                <div className="w-full aspect-square max-h-52 bg-slate-100 border-4 border-slate-200 flex items-center justify-center mx-auto">
+                  <Package size={56} className="text-slate-300" />
                 </div>
               </div>
-              <div className="border-t-2 border-surface-container-high px-5 py-3 flex items-center gap-4">
+              <div className="border-t-2 border-slate-100 px-6 py-4 flex items-center gap-5">
                 <div className="flex-1">
-                  <p className="text-[9px] font-headline font-bold uppercase tracking-widest text-outline">
-                    SKU ID
-                  </p>
-                  <p className="font-mono text-sm font-bold text-on-surface">
-                    {activeTask.sku_name}
-                  </p>
+                  <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-slate-500">SKU ID</p>
+                  <p className="font-mono text-sm font-bold text-slate-900 mt-1">{activeTask.sku_name}</p>
                 </div>
-                <div className="flex-1 border-l-2 border-surface-container-high pl-4">
-                  <p className="text-[9px] font-headline font-bold uppercase tracking-widest text-outline">
-                    Target Qty
-                  </p>
-                  <p className="font-headline text-2xl font-black text-primary leading-none">
-                    04 <span className="text-xs text-outline font-normal">units</span>
+                <div className="flex-1 border-l-2 border-slate-200 pl-5">
+                  <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-slate-500">Target Qty</p>
+                  <p className="font-headline text-3xl font-black text-primary leading-none mt-1">
+                    04 <span className="text-sm text-slate-500 font-normal">units</span>
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3 h-44">
+            <div className="grid grid-cols-2 gap-4 h-52">
               <button
                 onClick={handleScanned}
-                className="bg-primary-container border-2 border-on-primary-container flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform"
+                className="bg-primary-container border-2 border-primary flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform"
               >
-                <CheckCircle2 size={44} className="text-on-primary-container" strokeWidth={2.5} />
-                <span className="font-headline font-black text-lg uppercase tracking-tight text-on-primary-container">
-                  Item Found
-                </span>
+                <CheckCircle2 size={52} className="text-on-primary-container" strokeWidth={2} />
+                <span className="font-headline font-black text-xl uppercase tracking-tight text-on-primary-container">Item Found</span>
               </button>
               <button
                 onClick={handleMissing}
-                className="bg-surface-container-lowest border-2 border-error flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform"
+                className="bg-white border-2 border-error flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform"
               >
-                <AlertTriangle size={44} className="text-error" strokeWidth={2.5} />
-                <span className="font-headline font-black text-lg uppercase tracking-tight text-error">
-                  Item Missing
-                </span>
+                <AlertTriangle size={52} className="text-error" strokeWidth={2} />
+                <span className="font-headline font-black text-xl uppercase tracking-tight text-error">Item Missing</span>
               </button>
             </div>
 
             {/* Snake Path Mini-Map */}
-            <div className="bg-surface-container-low border-2 border-outline-variant p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="bg-white border-2 border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Route size={12} className="text-outline" />
-                  <span className="font-headline font-bold uppercase tracking-widest text-[10px] text-on-surface">
-                    Warehouse Snake Path
-                  </span>
+                  <Route size={14} className="text-slate-500" />
+                  <span className="font-headline font-bold uppercase tracking-widest text-xs text-slate-900">Warehouse Snake Path</span>
                 </div>
-                <span className="text-[9px] font-headline font-bold uppercase bg-primary-fixed/20 text-primary px-2 py-0.5">
-                  Next: Aisle B
-                </span>
+                <span className="text-[10px] font-headline font-bold uppercase bg-primary-fixed/20 text-primary px-2.5 py-1">Next: Aisle B</span>
               </div>
-              <div className="relative h-28 bg-surface-container-highest border border-outline-variant overflow-hidden">
-                <div className="absolute inset-0 grid grid-cols-12 grid-rows-3 gap-0.5 p-1.5 opacity-20">
+              <div className="relative h-36 bg-slate-100 border border-slate-300 overflow-hidden">
+                <div className="absolute inset-0 grid grid-cols-12 grid-rows-3 gap-0.5 p-2 opacity-20">
                   {Array.from({ length: 36 }).map((_, i) => (
-                    <div key={i} className="bg-outline/30" />
+                    <div key={i} className="bg-slate-400" />
                   ))}
                 </div>
-                <svg
-                  className="absolute inset-0 w-full h-full"
-                  viewBox="0 0 400 100"
-                  preserveAspectRatio="none"
-                >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 100" preserveAspectRatio="none">
                   <path
                     d="M 20 80 L 100 80 L 100 20 L 180 20 L 180 80 L 260 80 L 260 20 L 340 20"
                     fill="none"
                     stroke="#02cbfc"
-                    strokeWidth="4"
+                    strokeWidth="5"
                     strokeLinecap="square"
                   />
-                  <circle cx="180" cy="80" r="6" fill="#003347" />
-                  <circle cx="180" cy="80" r="3" fill="#02cbfc" />
+                  <circle cx="180" cy="80" r="7" fill="#003347" />
+                  <circle cx="180" cy="80" r="4" fill="#02cbfc" />
                 </svg>
-                <div className="absolute top-1.5 left-2 px-1.5 py-0.5 bg-white border border-outline text-[8px] font-bold">
-                  AISLE A
-                </div>
-                <div className="absolute top-1.5 right-2 px-1.5 py-0.5 bg-white border border-outline text-[8px] font-bold">
-                  AISLE C
-                </div>
+                <div className="absolute top-2 left-3 px-2 py-1 bg-white border border-slate-400 text-[9px] font-bold">AISLE A</div>
+                <div className="absolute top-2 right-3 px-2 py-1 bg-white border border-slate-400 text-[9px] font-bold">AISLE C</div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-white/90 border-2 border-primary px-2 py-1 text-[9px] font-bold font-headline animate-pulse">
+                  <div className="bg-white/95 border-2 border-primary px-3 py-1.5 text-[10px] font-bold font-headline animate-pulse">
                     YOU ARE HERE: {aisleId}-4
                   </div>
                 </div>
@@ -376,51 +312,43 @@ export default function PickerApp() {
 
         {/* SCREEN: submitting */}
         {uiState === 'submitting' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-20">
-            <Loader2 size={36} className="animate-spin text-primary-fixed" />
-            <p className="font-headline font-bold text-outline uppercase tracking-widest text-xs">
-              Contacting agent…
-            </p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 py-24">
+            <Loader2 size={40} className="animate-spin text-primary-fixed" />
+            <p className="font-headline font-bold text-slate-600 uppercase tracking-widest text-sm">Contacting agent…</p>
           </div>
         )}
 
         {/* SCREEN: success */}
         {uiState === 'success' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-20 text-center">
-            <div className="w-16 h-16 border-2 border-emerald-500 bg-emerald-50 flex items-center justify-center">
-              <CheckCircle2 size={28} className="text-emerald-600" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 py-24 text-center">
+            <div className="w-20 h-20 border-2 border-emerald-500 bg-emerald-50 flex items-center justify-center">
+              <CheckCircle2 size={32} className="text-emerald-600" />
             </div>
-            <p className="font-headline font-bold text-emerald-600 uppercase tracking-widest text-sm">
-              {feedback}
-            </p>
+            <p className="font-headline font-bold text-emerald-600 uppercase tracking-widest text-base">{feedback}</p>
           </div>
         )}
 
         {/* SCREEN: rerouted */}
         {uiState === 'rerouted' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-20 text-center">
-            <div className="w-16 h-16 border-2 border-amber-500 bg-amber-50 flex items-center justify-center">
-              <ArrowRight size={28} className="text-amber-600" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 py-24 text-center">
+            <div className="w-20 h-20 border-2 border-amber-500 bg-amber-50 flex items-center justify-center">
+              <ArrowRight size={32} className="text-amber-600" />
             </div>
-            <p className="font-headline font-bold text-amber-600 uppercase tracking-widest text-sm">
-              {feedback}
-            </p>
-            <p className="text-xs text-outline">Loading new task…</p>
+            <p className="font-headline font-bold text-amber-600 uppercase tracking-widest text-base">{feedback}</p>
+            <p className="text-sm text-slate-600">Loading new task…</p>
           </div>
         )}
 
         {/* SCREEN: error */}
         {uiState === 'error' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-20 text-center">
-            <div className="w-16 h-16 border-2 border-error bg-red-50 flex items-center justify-center">
-              <AlertTriangle size={28} className="text-error" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 py-24 text-center">
+            <div className="w-20 h-20 border-2 border-error bg-red-50 flex items-center justify-center">
+              <AlertTriangle size={32} className="text-error" />
             </div>
-            <p className="font-headline font-bold text-error uppercase tracking-widest text-sm">
-              {feedback}
-            </p>
+            <p className="font-headline font-bold text-error uppercase tracking-widest text-base">{feedback}</p>
             <button
               onClick={() => setUiState(activeTask ? 'task_active' : 'idle')}
-              className="text-xs border border-outline-variant px-4 py-2 text-outline hover:bg-surface-container mt-2"
+              className="text-sm border border-slate-300 px-5 py-2.5 text-slate-700 hover:bg-slate-50 mt-3"
             >
               Retry
             </button>
@@ -429,25 +357,23 @@ export default function PickerApp() {
       </div>
 
       {/* ── Bottom Nav ── */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 grid grid-cols-4 h-16 bg-surface-container-lowest border-t-2 border-outline-variant">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 grid grid-cols-4 h-16 bg-white border-t-2 border-slate-200">
         {[
-          { label: 'Inventory', icon: <Package size={18} />, active: true },
-          { label: 'Orders', icon: <ShoppingCart size={18} />, active: false },
-          { label: 'Routes', icon: <Truck size={18} />, active: false },
-          { label: 'Admin', icon: <Settings size={18} />, active: false },
+          { label: 'Inventory', icon: <Package size={20} />, active: true },
+          { label: 'Orders', icon: <ShoppingCart size={20} />, active: false },
+          { label: 'Routes', icon: <Truck size={20} />, active: false },
+          { label: 'Admin', icon: <Settings size={20} />, active: false },
         ].map(item => (
           <button
             key={item.label}
             className={`flex flex-col items-center justify-center gap-1 h-full transition-colors ${
               item.active
                 ? 'text-primary-fixed border-t-2 border-primary-fixed -mt-[2px]'
-                : 'text-outline hover:text-on-surface'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             {item.icon}
-            <span className="font-headline font-bold uppercase tracking-widest text-[9px]">
-              {item.label}
-            </span>
+            <span className="font-headline font-bold uppercase tracking-widest text-[10px]">{item.label}</span>
           </button>
         ))}
       </nav>
